@@ -166,7 +166,54 @@ async def _housekeeping(db: AsyncSession, now) -> None:
         await db.commit()
 
 
+_RUNNING = False
+
+
+def dispatcher_running() -> bool:
+    return _RUNNING
+
+
+async def dispatch_tick(db: AsyncSession) -> int:
+    """One synchronous dispatcher pass (queued calls + due follow-ups).
+
+    Returns how many dials were dispatched. Used by POST /followups/dispatch
+    and by the background loop below.
+    """
+    from sqlalchemy import func as _func
+
+    queued_before = (
+        await db.execute(select(_func.count(Call.id)).where(Call.status == "queued"))
+    ).scalar_one()
+    due_ids = (
+        await db.execute(
+            select(FollowUp.id).where(
+                FollowUp.status == "pending",
+                FollowUp.scheduled_at <= utcnow(),
+                FollowUp.attempts < MAX_FOLLOWUP_ATTEMPTS,
+            )
+        )
+    ).scalars().all()
+    if await gates.within_calling_hours():
+        await _dial_queued(db)
+    await _housekeeping(db, utcnow())
+    queued_after = (
+        await db.execute(select(_func.count(Call.id)).where(Call.status == "queued"))
+    ).scalar_one()
+    processed = 0
+    if due_ids:
+        processed = (
+            await db.execute(
+                select(_func.count(FollowUp.id)).where(
+                    FollowUp.id.in_(due_ids), FollowUp.status != "pending"
+                )
+            )
+        ).scalar_one()
+    return max(0, queued_before - queued_after) + processed
+
+
 async def run_dispatcher_forever() -> None:
+    global _RUNNING
+    _RUNNING = True
     logger.info("Follow-up/batch dispatcher started")
     tick = 0
     while True:

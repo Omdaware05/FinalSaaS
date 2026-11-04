@@ -10,7 +10,7 @@ from sqlalchemy import select
 
 from app.config import settings
 from app.db import async_session, init_db
-from app.models import Agent, Tenant, User
+from app.models import Agent, Tenant, User, UserBusiness
 from app.security import hash_password
 
 logger = logging.getLogger(__name__)
@@ -75,21 +75,33 @@ async def seed_if_empty() -> None:
         ).scalar_one_or_none()
         if admin is None:
             if settings.ADMIN_PASSWORD:
-                db.add(
-                    User(
-                        tenant_id=tenant.id,
-                        email=settings.ADMIN_EMAIL,
-                        password_hash=hash_password(settings.ADMIN_PASSWORD),
-                        name="Admin",
-                        role="admin",
-                    )
+                admin = User(
+                    tenant_id=tenant.id,
+                    email=settings.ADMIN_EMAIL,
+                    password_hash=hash_password(settings.ADMIN_PASSWORD),
+                    name="Admin",
+                    role="admin",
                 )
+                db.add(admin)
+                await db.flush()
                 logger.info("[seed] Created admin user %s", settings.ADMIN_EMAIL)
             else:
                 logger.warning(
                     "[seed] ADMIN_PASSWORD is not set — skipping admin user creation. "
                     "Set ADMIN_PASSWORD in backend/.env to create the login."
                 )
+
+        if admin is not None:
+            membership = (
+                await db.execute(
+                    select(UserBusiness).where(
+                        UserBusiness.user_id == admin.id, UserBusiness.tenant_id == tenant.id
+                    )
+                )
+            ).scalar_one_or_none()
+            if membership is None:
+                db.add(UserBusiness(user_id=admin.id, tenant_id=tenant.id, role="admin"))
+                logger.info("[seed] Created admin membership for the demo tenant")
 
         existing = (
             await db.execute(select(Agent).where(Agent.tenant_id == tenant.id).limit(1))

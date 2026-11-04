@@ -1,0 +1,38 @@
+/* Theme & Accent Tokens */
+
+:root {
+  /* Default Orange Theme */
+  --primary-rgb: 249, 115, 22;
+  --amb-a-rgb: 249, 115, 22;
+  --amb-b-rgb: 234, 88, 12;
+  --amb-c-rgb: 251, 146, 60;
+  --amb-dots-rgb: 249, 115, 22;
+  --amb-intensity: 0.55;
+
+  --brand-primary: rgb(var(--primary-rgb));
+  --brand-primary-hover: rgba(var(--primary-rgb), 0.88);
+  --brand-light: rgba(var(--primary-rgb), 0.12);
+  --brand-text: rgb(var(--primary-rgb));
+}
+
+/* Violet Accent Support (?accent=violet) */
+[data-accent="violet"],
+:root[data-accent="violet"],
+.dark[data-accent="violet"] {
+  --primary-rgb: 139, 92, 246;
+  --amb-a-rgb: 139, 92, 246;
+  --amb-b-rgb: 124, 58, 237;
+  --amb-c-rgb: 167, 139, 250;
+  --amb-dots-rgb: 139, 92, 246;
+  --amb-intensity: 0.55;
+
+  --brand-primary: #8b5cf6;
+  --brand-primary-hover: #7c3aed;
+  --brand-light: rgba(139, 92, 246, 0.14);
+  --brand-text: #a78bfa;
+}
+
+/* Dynamic glow color aligned with current accent */
+:root {
+  --glow-color: var(--primary-rgb);
+}

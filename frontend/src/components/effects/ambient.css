@@ -1,0 +1,270 @@
+/* Ambient Background - Spec Part B 6-Layer Architecture */
+
+.ambient-container {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* Layer 1: Base Gradient */
+.ambient-base-dark {
+  background: linear-gradient(180deg, #0B0C0E 0%, #101113 55%, #0D0E10 100%);
+}
+
+.ambient-base-light {
+  background: #f8fafc;
+}
+
+.ambient-light-tint {
+  background: radial-gradient(900px 520px at 85% -5%, rgba(var(--primary-rgb), 0.05), transparent 60%),
+              radial-gradient(700px 520px at -5% 105%, rgba(var(--primary-rgb), 0.03), transparent 60%);
+}
+
+/* Layer 2: Mesh Aurora Shapes */
+.aurora-shape {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.aurora-top-right {
+  width: 70vw;
+  height: 70vw;
+  top: -15vw;
+  right: -15vw;
+  background: radial-gradient(circle, rgb(var(--amb-a-rgb) / calc(0.38 * var(--amb-intensity, 1))) 0%, rgb(var(--amb-a-rgb) / calc(0.12 * var(--amb-intensity, 1))) 50%, transparent 70%);
+  filter: blur(90px);
+  animation: driftAurora1 34s ease-in-out infinite alternate;
+}
+
+.aurora-bottom-left {
+  width: 75vw;
+  height: 75vw;
+  bottom: -20vw;
+  left: -20vw;
+  background: radial-gradient(circle, rgb(var(--amb-b-rgb) / calc(0.34 * var(--amb-intensity, 1))) 0%, rgb(var(--amb-b-rgb) / calc(0.10 * var(--amb-intensity, 1))) 50%, transparent 70%);
+  filter: blur(100px);
+  animation: driftAurora2 44s ease-in-out infinite alternate-reverse;
+  animation-delay: -5s;
+}
+
+.aurora-mid-left {
+  width: 45vw;
+  height: 45vw;
+  top: 28%;
+  left: -12vw;
+  background: radial-gradient(circle, rgb(var(--amb-c-rgb) / calc(0.20 * var(--amb-intensity, 1))) 0%, rgb(var(--amb-c-rgb) / calc(0.06 * var(--amb-intensity, 1))) 50%, transparent 70%);
+  filter: blur(90px);
+  animation: driftAurora3 52s ease-in-out infinite alternate;
+  animation-delay: -12s;
+}
+
+.aurora-bottom-right {
+  width: 50vw;
+  height: 50vw;
+  bottom: -10vw;
+  right: 5vw;
+  background: radial-gradient(circle, rgb(var(--amb-a-rgb) / calc(0.26 * var(--amb-intensity, 1))) 0%, rgb(var(--amb-a-rgb) / calc(0.08 * var(--amb-intensity, 1))) 50%, transparent 70%);
+  filter: blur(90px);
+  animation: driftAurora4 40s ease-in-out infinite alternate-reverse;
+  animation-delay: -8s;
+}
+
+.aurora-top-left {
+  width: 35vw;
+  height: 35vw;
+  top: -6vw;
+  left: -6vw;
+  background: radial-gradient(circle, rgb(var(--amb-b-rgb) / calc(0.16 * var(--amb-intensity, 1))) 0%, transparent 65%);
+  filter: blur(80px);
+  animation: driftAurora5 60s ease-in-out infinite alternate;
+  animation-delay: -18s;
+}
+
+@keyframes driftAurora1 {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-6vw, 4vh, 0) scale(1.08); }
+  100% { transform: translate3d(-8vw, 2vh, 0) scale(1.03); }
+}
+
+@keyframes driftAurora2 {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(7vw, -5vh, 0) scale(1.10); }
+  100% { transform: translate3d(5vw, -3vh, 0) scale(1.02); }
+}
+
+@keyframes driftAurora3 {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(5vw, 4vh, 0) scale(1.12); }
+  100% { transform: translate3d(3vw, -3vh, 0) scale(0.97); }
+}
+
+@keyframes driftAurora4 {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-5vw, -4vh, 0) scale(1.06); }
+  100% { transform: translate3d(4vw, 3vh, 0) scale(1.01); }
+}
+
+@keyframes driftAurora5 {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(6vw, 5vh, 0) scale(1.07); }
+  100% { transform: translate3d(-3vw, 2vh, 0) scale(0.96); }
+}
+
+/* Layer 3: Flowing Light Ribbons */
+.ribbon-wrapper {
+  position: absolute;
+  inset: -20% -30%;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.light-ribbon {
+  position: absolute;
+  width: 160%;
+  border-radius: 9999px;
+  will-change: transform;
+}
+
+.ribbon-1 {
+  height: 32vh;
+  top: 30%;
+  left: -30%;
+  transform: rotate(-12deg);
+  background: linear-gradient(90deg, transparent 0%, rgb(var(--amb-a-rgb) / calc(0.16 * var(--amb-intensity, 1))) 45%, rgb(var(--amb-c-rgb) / calc(0.13 * var(--amb-intensity, 1))) 55%, transparent 100%);
+  filter: blur(70px);
+  animation: slideRibbon1 54s linear infinite alternate;
+}
+
+.ribbon-2 {
+  height: 28vh;
+  top: 55%;
+  left: -20%;
+  transform: rotate(-12deg);
+  background: linear-gradient(90deg, transparent 0%, rgb(var(--amb-b-rgb) / calc(0.14 * var(--amb-intensity, 1))) 40%, rgb(var(--amb-a-rgb) / calc(0.11 * var(--amb-intensity, 1))) 60%, transparent 100%);
+  filter: blur(70px);
+  animation: slideRibbon2 66s linear infinite alternate-reverse;
+}
+
+@keyframes slideRibbon1 {
+  0% { transform: rotate(-12deg) translate3d(-10%, 0, 0); }
+  100% { transform: rotate(-12deg) translate3d(12%, 0, 0); }
+}
+
+@keyframes slideRibbon2 {
+  0% { transform: rotate(-12deg) translate3d(10%, 0, 0); }
+  100% { transform: rotate(-12deg) translate3d(-12%, 0, 0); }
+}
+
+/* Layer 4: Dot Grid Texture */
+.dot-grid-wrapper {
+  position: absolute;
+  inset: -10%;
+  pointer-events: none;
+  opacity: 0.22;
+  will-change: transform;
+  animation: driftDots 80s ease-in-out infinite alternate;
+  -webkit-mask-image: radial-gradient(ellipse at 50% 45%, transparent 30%, black 80%);
+  mask-image: radial-gradient(ellipse at 50% 45%, transparent 30%, black 80%);
+}
+
+.dot-grid-pattern {
+  width: 100%;
+  height: 100%;
+  background-image: radial-gradient(rgb(var(--amb-dots-rgb) / 0.5) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+@keyframes driftDots {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(20px, 20px, 0); }
+}
+
+/* Layer 5: Neutral Smoke Clouds */
+.smoke-cloud {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.05) 0%, transparent 65%);
+  filter: blur(110px);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.smoke-1 {
+  width: 65vw;
+  height: 65vw;
+  top: 10%;
+  right: -10vw;
+  animation: floatSmoke1 85s ease-in-out infinite alternate;
+}
+
+.smoke-2 {
+  width: 70vw;
+  height: 70vw;
+  bottom: 5%;
+  left: -15vw;
+  animation: floatSmoke2 95s ease-in-out infinite alternate-reverse;
+}
+
+.smoke-3 {
+  width: 50vw;
+  height: 50vw;
+  top: 45%;
+  left: 20%;
+  animation: floatSmoke3 100s ease-in-out infinite alternate;
+}
+
+@keyframes floatSmoke1 {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-5vw, 6vh, 0); }
+}
+
+@keyframes floatSmoke2 {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(6vw, -5vh, 0); }
+}
+
+@keyframes floatSmoke3 {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-4vw, -4vh, 0); }
+}
+
+/* Layer 6: Vignette - Center stays darkest behind main content */
+.ambient-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 45%, transparent 45%, rgba(0, 0, 0, 0.38) 100%);
+  pointer-events: none;
+}
+
+/* Accessibility: Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .aurora-shape,
+  .light-ribbon,
+  .dot-grid-wrapper,
+  .smoke-cloud {
+    animation: none !important;
+  }
+}
+
+/* Mobile & Touch: Static, hide heavy ribbons & dots */
+@media (max-width: 768px), (pointer: coarse) {
+  .aurora-shape,
+  .smoke-cloud {
+    animation: none !important;
+  }
+  .ribbon-wrapper,
+  .dot-grid-wrapper {
+    display: none !important;
+  }
+}
+
+/* Print Mode: completely hide */
+@media print {
+  .ambient-container {
+    display: none !important;
+  }
+}

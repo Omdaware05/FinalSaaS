@@ -1,14 +1,15 @@
 import csv
 import io
 
-from fastapi import APIRouter, Depends, UploadFile
-from pydantic import BaseModel
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, File, Form, UploadFile
+from pydantic import BaseModel, Field
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.deps import get_current_user, get_db
+from app.deps import get_active_tenant, get_current_user, get_db
 from app.errors import DomainError
-from app.models import Contact, User, utcnow
+from app.models import Call, Contact, User
+from app.serializers import contact_out
 from app.services.phone import normalize_phone
 
 router = APIRouter(prefix="/contacts", tags=["contacts"])
@@ -16,28 +17,60 @@ router = APIRouter(prefix="/contacts", tags=["contacts"])
 
 class ContactIn(BaseModel):
     name: str = ""
-    phone: str
+    phone: str = ""
+    phone_number: str = ""
     email: str = ""
+    agent_id: str | None = None
     consent_status: str = "unknown"
     consent_source: str = ""
     notes: str = ""
+    custom_fields: dict = Field(default_factory=dict)
 
 
-def _out(c: Contact) -> dict:
-    return {
-        "id": c.id, "name": c.name, "phone": c.phone, "email": c.email,
-        "status": c.status, "consent_status": c.consent_status,
-        "consent_source": c.consent_source,
-        "consent_at": c.consent_at.isoformat() if c.consent_at else None,
-        "notes": c.notes,
-        "created_at": c.created_at.isoformat() if c.created_at else None,
-    }
+class ContactPatch(BaseModel):
+    name: str | None = None
+    phone: str | None = None
+    phone_number: str | None = None
+    email: str | None = None
+    agent_id: str | None = None
+    status: str | None = None
+    consent_status: str | None = None
+    consent_source: str | None = None
+    notes: str | None = None
+    custom_fields: dict | None = None
 
 
-async def _get(db: AsyncSession, user: User, contact_id: str) -> Contact:
+async def _out(db: AsyncSession, c: Contact) -> dict:
+    stats = (
+        await db.execute(
+            select(func.count(Call.id), func.max(Call.created_at))
+            .where(Call.tenant_id == c.tenant_id, Call.phone == c.phone)
+        )
+    ).one()
+    last_call = (
+        await db.execute(
+            select(Call).where(Call.tenant_id == c.tenant_id, Call.phone == c.phone)
+            .order_by(Call.created_at.desc()).limit(1)
+        )
+    ).scalar_one_or_none()
+    last_interest = None
+    if last_call and last_call.disposition == "interested":
+        last_interest = "interested"
+    elif last_call and last_call.disposition == "not_interested":
+        last_interest = "not_interested"
+    return contact_out(
+        c,
+        interaction_count=stats[0] or 0,
+        last_call_id=last_call.id if last_call else None,
+        last_call_at=stats[1],
+        last_interest_status=last_interest,
+    )
+
+
+async def _get(db: AsyncSession, tenant_id: str, contact_id: str) -> Contact:
     contact = (
         await db.execute(
-            select(Contact).where(Contact.id == contact_id, Contact.tenant_id == user.tenant_id)
+            select(Contact).where(Contact.id == contact_id, Contact.tenant_id == tenant_id)
         )
     ).scalar_one_or_none()
     if contact is None:
@@ -46,100 +79,192 @@ async def _get(db: AsyncSession, user: User, contact_id: str) -> Contact:
 
 
 @router.get("")
-async def list_contacts(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def list_contacts(tenant_id: str = Depends(get_active_tenant),
+                        db: AsyncSession = Depends(get_db),
+                        limit: int = 200, offset: int = 0, skip: int = 0):
     rows = (
         await db.execute(
-            select(Contact).where(Contact.tenant_id == user.tenant_id).order_by(Contact.created_at)
+            select(Contact).where(Contact.tenant_id == tenant_id)
+            .order_by(Contact.created_at).limit(min(limit, 1000)).offset(offset or skip)
         )
     ).scalars().all()
-    return [_out(c) for c in rows]
+    return [await _out(db, c) for c in rows]
 
 
 @router.post("", status_code=201)
-async def create_contact(body: ContactIn, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    phone = normalize_phone(body.phone)
+async def create_contact(body: ContactIn, user: User = Depends(get_current_user),
+                         tenant_id: str = Depends(get_active_tenant),
+                         db: AsyncSession = Depends(get_db)):
+    phone = normalize_phone(body.phone_number or body.phone)
+    # create-or-update semantics (old UI's createOrUpdateContact)
+    existing = (
+        await db.execute(
+            select(Contact).where(Contact.tenant_id == tenant_id, Contact.phone == phone)
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        if body.name:
+            existing.name = body.name
+        if body.email:
+            existing.email = body.email
+        if body.agent_id is not None:
+            existing.agent_id = body.agent_id
+        if body.custom_fields:
+            existing.custom_fields = {**(existing.custom_fields or {}), **body.custom_fields}
+        await db.commit()
+        await db.refresh(existing)
+        return await _out(db, existing)
     contact = Contact(
-        tenant_id=user.tenant_id,
-        name=body.name, phone=phone, email=body.email,
-        consent_status=body.consent_status if body.consent_status in ("granted", "unknown", "denied") else "unknown",
+        tenant_id=tenant_id, name=body.name, phone=phone, email=body.email,
+        agent_id=body.agent_id, consent_status=body.consent_status or "unknown",
         consent_source=body.consent_source, notes=body.notes,
-        consent_at=utcnow() if body.consent_status == "granted" else None,
+        custom_fields=body.custom_fields or {},
     )
     db.add(contact)
     await db.commit()
     await db.refresh(contact)
-    return _out(contact)
+    return await _out(db, contact)
 
 
 @router.get("/{contact_id}")
-async def get_contact(contact_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    return _out(await _get(db, user, contact_id))
+async def get_contact(contact_id: str, tenant_id: str = Depends(get_active_tenant),
+                      db: AsyncSession = Depends(get_db)):
+    return await _out(db, await _get(db, tenant_id, contact_id))
+
+
+@router.patch("/{contact_id}")
+async def patch_contact(contact_id: str, body: ContactPatch,
+                        tenant_id: str = Depends(get_active_tenant),
+                        db: AsyncSession = Depends(get_db)):
+    contact = await _get(db, tenant_id, contact_id)
+    data = body.model_dump(exclude_unset=True)
+    if data.get("phone_number") and not data.get("phone"):
+        data["phone"] = data.pop("phone_number")
+    else:
+        data.pop("phone_number", None)
+    if data.get("phone"):
+        data["phone"] = normalize_phone(data["phone"])
+    for key, value in data.items():
+        setattr(contact, key, value)
+    await db.commit()
+    await db.refresh(contact)
+    return await _out(db, contact)
+
+
+@router.put("/{contact_id}")
+async def put_contact(contact_id: str, body: ContactPatch,
+                      tenant_id: str = Depends(get_active_tenant),
+                      db: AsyncSession = Depends(get_db)):
+    return await patch_contact(contact_id, body, tenant_id, db)
 
 
 @router.delete("/{contact_id}")
-async def delete_contact(contact_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    contact = await _get(db, user, contact_id)
+async def delete_contact(contact_id: str, tenant_id: str = Depends(get_active_tenant),
+                         db: AsyncSession = Depends(get_db)):
+    contact = await _get(db, tenant_id, contact_id)
     await db.delete(contact)
     await db.commit()
-    return {"success": True, "id": contact_id}
+    return {"deleted": True, "success": True, "contact_id": contact_id, "id": contact_id}
 
 
 @router.post("/{contact_id}/opt-out")
-async def opt_out(contact_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    contact = await _get(db, user, contact_id)
+async def opt_out(contact_id: str, tenant_id: str = Depends(get_active_tenant),
+                  db: AsyncSession = Depends(get_db)):
+    contact = await _get(db, tenant_id, contact_id)
+    from app.models import utcnow
+
     contact.status = "do_not_call"
     contact.consent_status = "denied"
     contact.consent_at = utcnow()
     await db.commit()
-    return _out(contact)
+    await db.refresh(contact)
+    return await _out(db, contact)
 
 
-@router.post("/import")
-async def import_contacts(file: UploadFile, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def _import_csv(db: AsyncSession, tenant_id: str, file: UploadFile,
+                      agent_id: str | None) -> dict:
     raw = await file.read()
-    try:
-        text = raw.decode("utf-8-sig")
-    except UnicodeDecodeError:
-        raise DomainError("INVALID_CSV", "CSV file must be UTF-8 encoded.", 400)
+    text = raw.decode("utf-8-sig", errors="replace")
     reader = csv.DictReader(io.StringIO(text))
-    created, skipped, errors = 0, 0, []
-    existing = {
-        c.phone
-        for c in (
-            await db.execute(select(Contact).where(Contact.tenant_id == user.tenant_id))
-        ).scalars().all()
+    if reader.fieldnames is None:
+        raise DomainError("INVALID_CSV", "CSV file is empty or unreadable.", 400)
+
+    existing_phones = {
+        row[0]
+        for row in (
+            await db.execute(select(Contact.phone).where(Contact.tenant_id == tenant_id))
+        ).all()
     }
-    for row_no, row in enumerate(reader, start=2):
-        raw_phone = (row.get("phone") or "").strip()
+    created = 0
+    skipped = 0
+    duplicate_rows = 0
+    errors: list[dict] = []
+    seen: set[str] = set()
+    total_rows = 0
+    for row_number, row in enumerate(reader, start=2):
+        total_rows += 1
+        raw_phone = (
+            row.get("phone") or row.get("phone_number") or row.get("mobile")
+            or row.get("number") or ""
+        ).strip()
+        raw_data = ", ".join(f"{k}={v}" for k, v in row.items())
         if not raw_phone:
             skipped += 1
-            errors.append({"row": row_no, "error": "INVALID_PHONE_NUMBER", "message": "Missing phone"})
+            errors.append({"row": row_number, "row_number": row_number,
+                           "raw_data": raw_data, "error": "Missing phone number."})
             continue
         try:
             phone = normalize_phone(raw_phone)
         except DomainError as exc:
             skipped += 1
-            errors.append({"row": row_no, "error": exc.code, "message": exc.message})
+            errors.append({"row": row_number, "row_number": row_number,
+                           "raw_data": raw_data, "error": exc.message})
             continue
-        if phone in existing:
+        if phone in existing_phones or phone in seen:
             skipped += 1
-            errors.append({"row": row_no, "error": "DUPLICATE", "message": "Contact already exists"})
+            duplicate_rows += 1
             continue
-        consent = (row.get("consent_status") or "unknown").strip().lower()
-        if consent not in ("granted", "unknown", "denied"):
-            consent = "unknown"
+        seen.add(phone)
         db.add(
             Contact(
-                tenant_id=user.tenant_id,
+                tenant_id=tenant_id,
                 name=(row.get("name") or "").strip(),
                 phone=phone,
                 email=(row.get("email") or "").strip(),
-                consent_status=consent,
-                consent_source=(row.get("consent_source") or "csv_import").strip(),
-                consent_at=utcnow() if consent == "granted" else None,
+                agent_id=agent_id,
+                consent_status="granted",
+                consent_source="csv_import",
             )
         )
-        existing.add(phone)
         created += 1
     await db.commit()
-    return {"created": created, "skipped": skipped, "errors": errors}
+    return {
+        # clean keys (current frontend)
+        "created": created, "skipped": skipped, "errors": errors,
+        # old CsvImportResponse keys
+        "total_rows": total_rows,
+        "valid_rows": created,
+        "invalid_rows": len(errors),
+        "duplicate_rows": duplicate_rows,
+        "imported_rows": created,
+        "skipped_rows": skipped,
+        "filename": file.filename,
+    }
+
+
+@router.post("/import")
+async def import_csv(file: UploadFile = File(...),
+                     user: User = Depends(get_current_user),
+                     tenant_id: str = Depends(get_active_tenant),
+                     db: AsyncSession = Depends(get_db)):
+    return await _import_csv(db, tenant_id, file, None)
+
+
+@router.post("/import-csv")
+async def import_csv_alias(file: UploadFile = File(...),
+                           agent_id: str | None = Form(None),
+                           user: User = Depends(get_current_user),
+                           tenant_id: str = Depends(get_active_tenant),
+                           db: AsyncSession = Depends(get_db)):
+    # old contacts.ts: POST /contacts/import-csv, multipart field "file"
+    return await _import_csv(db, tenant_id, file, agent_id)

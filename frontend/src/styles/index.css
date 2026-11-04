@@ -1,0 +1,384 @@
+@import './themes.css';
+@import '../components/effects/glow.css';
+@import '../components/effects/ambient.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-app: #f8fafc;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+    --sidebar-inactive-text: #475569;
+    --sidebar-inactive-icon: #64748b;
+    --sidebar-section-label: #64748b;
+    --input-placeholder: #94a3b8;
+
+    /* Light Theme Glass Tokens */
+    --glass-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.70));
+    --glass-border: rgba(226, 232, 240, 0.90);
+    --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    --glass-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+
+    --card-glass-bg: rgba(255, 255, 255, 0.78);
+    --card-glass-hover: rgba(255, 255, 255, 0.92);
+    --card-glass-border: rgba(226, 232, 240, 0.90);
+
+    --sidebar-glass-bg: rgba(255, 255, 255, 0.85);
+    --header-glass-bg: rgba(255, 255, 255, 0.85);
+    --modal-glass-bg: #FFFFFF;
+    --input-glass-bg: rgba(255, 255, 255, 0.80);
+    --table-row-hover: rgba(var(--primary-rgb), 0.05);
+  }
+
+  .dark {
+    --bg-app: #0B0C0E;
+    --text-primary: #F8F8FA;
+    --text-secondary: #C9C9D1;
+    --text-muted: #9D9DA8;
+    --sidebar-inactive-text: #D0D0D8;
+    --sidebar-inactive-icon: #A8A8B3;
+    --sidebar-section-label: #9D9DA8;
+    --input-placeholder: #8E8E99;
+
+    /* Dark Theme Spec Glass Tokens */
+    --glass-bg: linear-gradient(rgba(10, 10, 12, 0.35), rgba(10, 10, 12, 0.35)),
+                linear-gradient(145deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
+                rgba(18, 19, 23, 0.58);
+    --glass-border: rgba(255, 255, 255, 0.10);
+    --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+
+    /* Translucent Card Surface alpha 0.52-0.62 with dark scrim for WCAG AA readability */
+    --card-glass-bg: linear-gradient(rgba(10, 10, 12, 0.35), rgba(10, 10, 12, 0.35)),
+                     linear-gradient(145deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
+                     rgba(18, 19, 23, 0.58);
+    --card-glass-hover: linear-gradient(rgba(10, 10, 12, 0.30), rgba(10, 10, 12, 0.30)),
+                        linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
+                        rgba(24, 25, 30, 0.65);
+    --card-glass-border: rgba(255, 255, 255, 0.10);
+
+    /* Sidebar & Header blur(22px), alpha ~0.50 so the aurora is visible through them */
+    --sidebar-glass-bg: rgba(12, 13, 16, 0.50);
+    --header-glass-bg: rgba(11, 12, 15, 0.50);
+
+    /* Modals, drawers, dropdowns solid opaque surface for crisp contrast and zero bleed */
+    --modal-glass-bg: #13151B;
+    --input-glass-bg: rgba(255, 255, 255, 0.04);
+    --table-row-hover: rgba(var(--primary-rgb), 0.08);
+  }
+
+  body {
+    background-color: var(--bg-app);
+    color: var(--text-primary);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Glassmorphic Components */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+.glass-card {
+  background: var(--card-glass-bg);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  border: 1px solid var(--card-glass-border);
+  box-shadow: var(--glass-shadow);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card:hover {
+  background: var(--card-glass-hover);
+}
+
+.glass-sidebar {
+  background: var(--sidebar-glass-bg);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  border-right: 1px solid var(--glass-border);
+}
+
+.glass-header {
+  background: var(--header-glass-bg);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.glass-modal {
+  background: var(--modal-glass-bg);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+}
+
+.glass-input {
+  background: var(--input-glass-bg);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+}
+
+.glass-input::placeholder {
+  color: var(--input-placeholder);
+}
+
+/* Fallback for browsers that do not support backdrop-filter */
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .glass-panel,
+  .glass-card,
+  .glass-sidebar,
+  .glass-header,
+  .glass-modal {
+    background: rgba(18, 19, 23, 0.94) !important;
+  }
+}
+
+/* Tabular figures for exact alignment in metrics and data tables */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Custom sleek scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 9999px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(161, 161, 170, 0.25);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.4);
+}
+
+/* Subtle live pulse animation for active indicator */
+@keyframes live-pulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 5px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+.animate-live-pulse {
+  animation: live-pulse 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+/* Waveform sound bar animation for speaking state */
+@keyframes audio-wave {
+  0%, 100% {
+    height: 4px;
+  }
+  50% {
+    height: 18px;
+  }
+}
+
+.sound-bar {
+  animation: audio-wave 1.2s ease-in-out infinite;
+}
+.sound-bar:nth-child(2) { animation-delay: 0.15s; }
+.sound-bar:nth-child(3) { animation-delay: 0.3s; }
+.sound-bar:nth-child(4) { animation-delay: 0.45s; }
+.sound-bar:nth-child(5) { animation-delay: 0.6s; }
+
+/* ==========================================================================
+   Premium Motion System — restrained, enterprise-grade animation.
+   One easing curve everywhere (easeOutExpo), short durations, subtle
+   travel distances. Motion should feel like polish, never like a show.
+   ========================================================================== */
+
+:root {
+  --ease-premium: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes enter-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes enter-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.965) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes row-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Whole-page transition on route change (AppShell keys this by pathname) */
+.anim-page {
+  animation: enter-up 0.55s var(--ease-premium) both;
+}
+
+/* Staggered entrance for headers, cards and sections.
+   Pair with inline style={{ animationDelay: '80ms' }} for the stagger. */
+.anim-enter {
+  opacity: 0;
+  animation: enter-up 0.65s var(--ease-premium) forwards;
+}
+
+.anim-fade {
+  animation: enter-fade 0.3s ease-out both;
+}
+
+.anim-scale-in {
+  animation: scale-in 0.38s var(--ease-premium) both;
+}
+
+.anim-drawer-in {
+  animation: drawer-in 0.42s var(--ease-premium) both;
+}
+
+/* Table rows settle in with a capped stagger (delay set inline per row) */
+.anim-row {
+  animation: row-in 0.5s var(--ease-premium) both;
+}
+
+/* Skeleton shimmer — a soft light sweep instead of a flat pulse */
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.14) 50%,
+    transparent 100%
+  );
+  animation: shimmer-sweep 1.6s ease-in-out infinite;
+}
+
+@keyframes shimmer-sweep {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Refined card hover: deeper, softer shadow (transform lift stays with
+   the Card component so tilt users are unaffected) */
+.glass-card:hover {
+  box-shadow:
+    0 12px 34px -10px rgba(0, 0, 0, 0.28),
+    0 4px 14px -6px rgba(0, 0, 0, 0.18);
+}
+
+/* One consistent icon voice app-wide: Lucide at a refined 1.75 stroke
+   (the library default 2 reads chunky at small sizes). CSS wins over the
+   per-icon attribute, so every icon matches without touching call sites. */
+.lucide {
+  stroke-width: 1.75px;
+}
+
+/* Text selection + keyboard focus in the brand accent */
+::selection {
+  background: rgba(var(--primary-rgb), 0.32);
+}
+
+:focus-visible {
+  outline: 2px solid rgba(var(--primary-rgb), 0.65);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Respect users who prefer reduced motion: everything lands instantly */
+@media (prefers-reduced-motion: reduce) {
+  .anim-page,
+  .anim-enter,
+  .anim-fade,
+  .anim-scale-in,
+  .anim-drawer-in,
+  .anim-row {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .skeleton-shimmer::after {
+    animation: none !important;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
+}

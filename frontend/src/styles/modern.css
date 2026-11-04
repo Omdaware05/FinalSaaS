@@ -1,0 +1,182 @@
+/* ==========================================================================
+   MODERN LOOK — clean light design layer.
+   Activated by data-look="modern" on <html> (ThemeProvider; the look
+   switcher lives in the Header). Classic look is untouched: every rule
+   here is scoped under html[data-look='modern'].
+
+   Design language: soft gray canvas (#F3F4F6), solid white cards with
+   24px radii and soft diffused shadows, hairline borders, pill buttons
+   (primary = near-black, like modern SaaS dashboards), no glass blur,
+   no ambient aurora. The brand orange stays as the accent color.
+   ========================================================================== */
+
+html[data-look='modern'] {
+  --card-glass-bg: #ffffff;
+  --sidebar-glass-bg: #ffffff;
+  --header-glass-bg: rgba(255, 255, 255, 0.92);
+  --modal-glass-bg: #ffffff;
+  --glass-border: #e7e9ec;
+  --glass-shadow: 0 1px 2px rgba(16, 24, 40, 0.05), 0 16px 40px -28px rgba(16, 24, 40, 0.22);
+}
+
+html[data-look='modern'] body {
+  background-color: #f3f4f6 !important;
+}
+
+/* Modern typeface: Plus Jakarta Sans (geometric, friendly, highly
+   legible) — Classic keeps Inter. Everything in Modern inherits it. */
+html[data-look='modern'] body,
+html[data-look='modern'] button,
+html[data-look='modern'] input,
+html[data-look='modern'] select,
+html[data-look='modern'] textarea {
+  font-family: 'Plus Jakarta Sans', 'Inter', ui-sans-serif, system-ui, sans-serif !important;
+  letter-spacing: -0.011em;
+}
+
+/* No ambient aurora, no glass blur anywhere in the modern look */
+html[data-look='modern'] .ambient-container {
+  display: none !important;
+}
+
+html[data-look='modern'] * {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* ---- Surfaces: solid white cards, big radii, soft shadows ---- */
+html[data-look='modern'] .app-card {
+  background: #ffffff !important;
+  border: 1px solid #e8eaed !important;
+  border-radius: 24px !important;
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.05),
+    0 20px 45px -30px rgba(16, 24, 40, 0.25) !important;
+}
+
+html[data-look='modern'] .app-card:hover {
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.05),
+    0 24px 50px -28px rgba(16, 24, 40, 0.3) !important;
+}
+
+html[data-look='modern'] .glass-panel,
+html[data-look='modern'] .glass-card {
+  background: #ffffff !important;
+  border-color: #e8eaed !important;
+  border-radius: 20px !important;
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.05),
+    0 16px 40px -28px rgba(16, 24, 40, 0.22) !important;
+}
+
+html[data-look='modern'] .app-overlay-panel {
+  background: #ffffff !important;
+  border-color: #e8eaed !important;
+  border-radius: 24px !important;
+  box-shadow: 0 24px 60px -24px rgba(16, 24, 40, 0.35) !important;
+}
+
+/* ---- Chrome: header + sidebar go solid white with hairline borders ---- */
+html[data-look='modern'] header {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: #e8eaed !important;
+}
+
+html[data-look='modern'] .app-sidebar {
+  background: #ffffff !important;
+  border-color: #e8eaed !important;
+}
+
+/* Sidebar nav: active item is a calm light-gray pill with dark text */
+html[data-look='modern'] .app-navlink {
+  border-radius: 12px !important;
+}
+
+html[data-look='modern'] .app-navlink-active {
+  background: #eef1f4 !important;
+  border-color: transparent !important;
+  color: #101828 !important;
+  box-shadow: none !important;
+}
+
+html[data-look='modern'] .app-navlink-active svg {
+  color: #101828 !important;
+}
+
+/* Page headers sit directly on the canvas — no divider rule */
+html[data-look='modern'] .app-pageheader {
+  border-color: transparent !important;
+}
+
+/* ---- Buttons: pills; primary becomes the near-black CTA ---- */
+html[data-look='modern'] .app-btn {
+  border-radius: 9999px !important;
+}
+
+html[data-look='modern'] .app-btn-primary {
+  background: #101828 !important;
+  border-color: #101828 !important;
+  color: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.25) !important;
+}
+
+html[data-look='modern'] .app-btn-primary:hover {
+  background: #1d2939 !important;
+  border-color: #1d2939 !important;
+  box-shadow: 0 2px 6px rgba(16, 24, 40, 0.28) !important;
+}
+
+html[data-look='modern'] .app-btn-secondary {
+  background: #ffffff !important;
+  border-color: #e4e7ec !important;
+  color: #344054 !important;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05) !important;
+}
+
+html[data-look='modern'] .app-btn-secondary:hover {
+  background: #f9fafb !important;
+}
+
+/* Icon chips: already neutral in classic; in modern they get a touch
+   more presence on the white cards */
+html[data-look='modern'] .app-card .lucide {
+  stroke-width: 1.9px;
+}
+
+/* ---- Tables: quiet header band, hairline row rules ---- */
+html[data-look='modern'] .app-table thead th {
+  background: #fafafb !important;
+  color: #667085 !important;
+  border-bottom: 1px solid #eef0f2 !important;
+}
+
+html[data-look='modern'] .app-table tbody td {
+  border-top: 1px solid #f1f2f4;
+}
+
+/* ---- Form controls: consistent hairline border on the light canvas ---- */
+html[data-look='modern'] input,
+html[data-look='modern'] select,
+html[data-look='modern'] textarea {
+  border-color: #e4e7ec;
+}
+
+/* Softer light scrollbar */
+html[data-look='modern'] ::-webkit-scrollbar-thumb {
+  background: #d0d5dd;
+}
+
+html[data-look='modern'] ::-webkit-scrollbar-thumb:hover {
+  background: #b6bec9;
+}
+
+/* Skeleton shimmer reads as a light sweep on white */
+html[data-look='modern'] .skeleton-shimmer::after {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.65) 50%,
+    transparent 100%
+  );
+}

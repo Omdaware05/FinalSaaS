@@ -39,7 +39,7 @@ def run_async(fn):
 
 def create_tenant_user(email: str, password: str, tenant_name: str):
     """Insert a tenant + user directly; returns (tenant_id, user_id)."""
-    from app.models import Tenant, User
+    from app.models import Tenant, User, UserBusiness
     from app.security import hash_password
 
     async def _make(maker):
@@ -52,6 +52,8 @@ def create_tenant_user(email: str, password: str, tenant_name: str):
                 password_hash=hash_password(password), name="Tester", role="admin",
             )
             db.add(user)
+            await db.flush()
+            db.add(UserBusiness(user_id=user.id, tenant_id=tenant.id, role="admin"))
             await db.commit()
             return tenant.id, user.id
 

@@ -41,6 +41,31 @@ def telephony_preflight() -> None:
         )
 
 
+async def telephony_preflight_for(db: AsyncSession, tenant_id: str) -> dict:
+    """Like telephony_preflight, but VoBiz credentials resolve per-tenant
+    (TenantConfig override -> env). Returns the resolved credential dict."""
+    from app.services import tenant_config
+
+    resolved = await tenant_config.resolve_vobiz(db, tenant_id)
+    if not resolved["configured"]:
+        raise DomainError(
+            "TELEPHONY_NOT_CONFIGURED",
+            "VoBiz telephony is not configured. Set the VoBiz credentials in "
+            "Settings (per-business) or VOBIZ_AUTH_ID / VOBIZ_AUTH_TOKEN / "
+            "VOBIZ_FROM_NUMBER in backend/.env.",
+            422,
+        )
+    if not settings.PUBLIC_BASE_URL.startswith("https://"):
+        raise DomainError(
+            "PUBLIC_URL_NOT_CONFIGURED",
+            "PUBLIC_BASE_URL must be a public https:// URL so the carrier can reach "
+            "the answer/stream webhooks. Set PUBLIC_BASE_URL in backend/.env (for local "
+            "development, expose port 8001 with a tunnel such as ngrok or cloudflared).",
+            422,
+        )
+    return resolved
+
+
 def _webhook_url(kind: str, call_id: str) -> str:
     base = settings.PUBLIC_BASE_URL.rstrip("/")
     return f"{base}/api/v1/webhooks/vobiz/{kind}/{call_id}?t={sign_call_token(call_id)}"
@@ -88,7 +113,7 @@ async def dial_existing_call(db: AsyncSession, call: Call) -> tuple[bool, str | 
     marked failed with the reason recorded — never left hanging.
     """
     try:
-        telephony_preflight()
+        resolved = await telephony_preflight_for(db, call.tenant_id)
     except DomainError as exc:
         call.status = "failed"
         call.failure_reason = exc.message
@@ -105,11 +130,11 @@ async def dial_existing_call(db: AsyncSession, call: Call) -> tuple[bool, str | 
         await db.commit()
         return False, "TELEPHONY_NOT_CONFIGURED", call.failure_reason
 
-    client = VoBizClient()
+    client = VoBizClient(auth_id=resolved["auth_id"], auth_token=resolved["auth_token"])
     try:
         call_uuid = await client.dial(
             to=call.phone,
-            from_number=settings.VOBIZ_FROM_NUMBER,
+            from_number=resolved["from_number"],
             answer_url=_webhook_url("answer", call.id),
             hangup_url=_webhook_url("hangup", call.id),
             recording_url=_webhook_url("recording", call.id),
@@ -162,7 +187,7 @@ async def initiate_call(
             400,
         )
 
-    telephony_preflight()
+    await telephony_preflight_for(db, user.tenant_id)
 
     limit = min(agent.concurrency or settings.MAX_CONCURRENT_CALLS_PER_AGENT,
                 settings.MAX_CONCURRENT_CALLS_PER_AGENT)
@@ -246,9 +271,12 @@ async def hangup_call(db: AsyncSession, user: User, call_id: str) -> Call:
         raise DomainError("CALL_NOT_FOUND", "Call not found.", 404)
     if call.provider_call_uuid:
         try:
+            from app.services import tenant_config
             from app.telephony.vobiz import VoBizClient
 
-            await VoBizClient().hangup(call.provider_call_uuid)
+            resolved = await tenant_config.resolve_vobiz(db, call.tenant_id)
+            client = VoBizClient(auth_id=resolved["auth_id"], auth_token=resolved["auth_token"])
+            await client.hangup(call.provider_call_uuid)
         except Exception as exc:  # best effort — the row is finalised regardless
             logger.warning("Carrier hangup failed for call %s: %s", call.id, exc)
     if call.status in ACTIVE_STATUSES or call.status == "queued":

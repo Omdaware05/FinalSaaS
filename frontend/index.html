@@ -1,11 +1,37 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="theme-color" content="#0B0C0E" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FinalSaaS — AI Voice Calling</title>
+    <script>
+      // Clear any service workers & caches from previous localhost apps (e.g. NagarDarpan PWA)
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          for (var i = 0; i < regs.length; i++) {
+            regs[i].unregister().then(function() {
+              console.log('[Voxora] Stale ServiceWorker unregistered.');
+            });
+          }
+        });
+      }
+      if ('caches' in window) {
+        caches.keys().then(function(keys) {
+          for (var j = 0; j < keys.length; j++) {
+            caches.delete(keys[j]);
+          }
+        });
+      }
+    </script>
+    <title>ARB SoftTech — Enterprise AI Voice Platform</title>
+    <meta name="description" content="Next-generation enterprise voice AI operations, real-time call telemetry, dynamic campaign management, and automated intelligence." />
+    <!-- Google Fonts Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   </head>
-  <body>
+  <body class="bg-[#f4f6fa] dark:bg-[#0b0d12] text-slate-900 dark:text-slate-100 font-sans antialiased selection:bg-indigo-500 selection:text-white transition-colors duration-150">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

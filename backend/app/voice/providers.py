@@ -109,21 +109,28 @@ def _sse_delta(line: str) -> str:
 
 # ---------------------------------------------------------------- Sarvam
 
-def _sarvam_headers() -> dict:
-    return {"api-subscription-key": settings.SARVAM_API_KEY or ""}
+def _sarvam_headers(api_key: str | None = None) -> dict:
+    key = settings.SARVAM_API_KEY if api_key is None else api_key
+    return {"api-subscription-key": key or ""}
 
 class SarvamSTT:
+    def __init__(self, api_key: str | None = None):
+        self._api_key = api_key
+
     async def transcribe(self, wav_bytes: bytes, language: str) -> str:
         files = {"file": ("caller_audio.wav", wav_bytes, "audio/wav")}
         data = {"model": settings.SARVAM_STT_MODEL, "language_code": language}
         resp = await _http().post(
-            f"{SARVAM_BASE}/speech-to-text", headers=_sarvam_headers(), files=files, data=data
+            f"{SARVAM_BASE}/speech-to-text", headers=_sarvam_headers(self._api_key), files=files, data=data
         )
         if resp.status_code != 200:
             raise ProviderError(f"Sarvam STT failed ({resp.status_code}): {resp.text[:200]}")
         return (resp.json().get("transcript") or "").strip()
 
 class SarvamLLM:
+    def __init__(self, api_key: str | None = None):
+        self._api_key = api_key
+
     async def stream_reply(self, messages: list[dict]) -> AsyncIterator[str]:
         payload = {
             "model": settings.SARVAM_LLM_MODEL,
@@ -132,7 +139,7 @@ class SarvamLLM:
             "max_tokens": 60,
             "stream": True,
         }
-        headers = {**_sarvam_headers(), "Content-Type": "application/json"}
+        headers = {**_sarvam_headers(self._api_key), "Content-Type": "application/json"}
         chunker = SentenceChunker()
         yielded = False
         try:
@@ -157,6 +164,9 @@ class SarvamLLM:
             raise ProviderError("Sarvam LLM returned an empty reply")
 
 class SarvamTTS:
+    def __init__(self, api_key: str | None = None):
+        self._api_key = api_key
+
     async def synthesize(self, text: str, voice_id: str | None, language: str) -> bytes:
         clean = (text or "").strip()
         if not clean:
@@ -170,7 +180,7 @@ class SarvamTTS:
             "enable_preprocessing": False,
         }
         resp = await _http().post(
-            f"{SARVAM_BASE}/text-to-speech", json=payload, headers=_sarvam_headers()
+            f"{SARVAM_BASE}/text-to-speech", json=payload, headers=_sarvam_headers(self._api_key)
         )
         if resp.status_code != 200:
             raise ProviderError(f"Sarvam TTS failed ({resp.status_code}): {resp.text[:200]}")
@@ -283,22 +293,29 @@ class VoiceProviders(NamedTuple):
     llm: LLMProvider
     tts: TTSProvider
 
-def get_providers() -> VoiceProviders:
-    provider = (settings.VOICE_PROVIDER or "").strip().lower()
+def get_providers(voice_provider: str | None = None, sarvam_api_key: str | None = None) -> VoiceProviders:
+    """Build the provider trio. Optional overrides come from the tenant's
+    stored config (voice mode + Sarvam key); defaults read env settings."""
+    provider = ((voice_provider if voice_provider is not None else settings.VOICE_PROVIDER) or "").strip().lower()
+    if provider == "api":  # old UI's third mode label; no cloud engine in this build
+        provider = "sarvam"
     if provider == "sarvam":
-        return VoiceProviders(SarvamSTT(), SarvamLLM(), SarvamTTS())
+        return VoiceProviders(
+            SarvamSTT(sarvam_api_key), SarvamLLM(sarvam_api_key), SarvamTTS(sarvam_api_key)
+        )
     if provider == "local":
         return VoiceProviders(LocalSTT(), LocalLLM(), LocalTTS())
     raise DomainError(
         "PROVIDER_NOT_CONFIGURED",
-        f"Unknown VOICE_PROVIDER {settings.VOICE_PROVIDER!r}; expected 'sarvam' or 'local'.",
+        f"Unknown VOICE_PROVIDER {provider!r}; expected 'sarvam' or 'local'.",
         500,
     )
 
-def is_provider_configured() -> bool:
-    provider = (settings.VOICE_PROVIDER or "").strip().lower()
-    if provider == "sarvam":
-        return bool(settings.SARVAM_API_KEY)
+def is_provider_configured(voice_provider: str | None = None, sarvam_api_key: str | None = None) -> bool:
+    provider = ((voice_provider if voice_provider is not None else settings.VOICE_PROVIDER) or "").strip().lower()
+    if provider in ("sarvam", "api"):
+        key = settings.SARVAM_API_KEY if sarvam_api_key is None else sarvam_api_key
+        return bool(key)
     if provider == "local":
         return bool(_local_base())
     return False

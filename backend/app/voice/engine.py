@@ -141,7 +141,13 @@ class VoiceEngine:
             return
         try:
             from app.telephony.vobiz import VoBizClient
-            await VoBizClient().hangup(call.provider_call_uuid)
+
+            creds = getattr(self, "_vobiz_creds", None) or {}
+            client = VoBizClient(
+                auth_id=creds.get("auth_id") or None,
+                auth_token=creds.get("auth_token") or None,
+            ) if creds else VoBizClient()
+            await client.hangup(call.provider_call_uuid)
         except Exception as exc:
             logger.debug("carrier hangup attempt failed: %s", exc)
 
@@ -247,6 +253,37 @@ class VoiceEngine:
             "Reply in the customer's language, in 1-2 short sentences. "
             "No markdown, no lists — this is spoken aloud."
         )
+        # Questionnaire hook: a published questionnaire assigned to this
+        # agent becomes an ordered list of questions to work through.
+        if getattr(agent, "questionnaire_id", None):
+            try:
+                from sqlalchemy import select as _select
+
+                from app.db import async_session as _async_session
+                from app.models import Questionnaire as _Questionnaire
+
+                async with _async_session() as _session:
+                    questionnaire = (
+                        await _session.execute(
+                            _select(_Questionnaire).where(
+                                _Questionnaire.id == agent.questionnaire_id,
+                                _Questionnaire.status == "published",
+                            )
+                        )
+                    ).scalar_one_or_none()
+                if questionnaire and questionnaire.questions:
+                    numbered = "\n".join(
+                        f"{i}. {q.get('text', '')}"
+                        for i, q in enumerate(questionnaire.questions, start=1)
+                        if q.get("text")
+                    )
+                    if numbered:
+                        system += (
+                            "\nAsk the following questions one at a time, in order:\n"
+                            + numbered
+                        )
+            except Exception as exc:  # never break a live reply over this
+                logger.warning("questionnaire prompt hook failed: %s", exc)
         messages = [{"role": "system", "content": system}] + state["history"][-12:]
         spoken = 0
         tts_failed = 0
@@ -317,6 +354,29 @@ class VoiceEngine:
             return
         state["agent"] = agent
         state["lang"] = _language_code(agent)
+
+        # Per-tenant voice resolution: the business's stored voice mode /
+        # Sarvam key (Settings screens) wins over the env defaults.
+        try:
+            from app.services import tenant_config
+
+            async with AsyncSessionLocal() as cfg_session:
+                mode = await tenant_config.resolve_voice_mode(cfg_session, call.tenant_id)
+                sarvam = await tenant_config.resolve_sarvam(cfg_session, call.tenant_id)
+                vobiz = await tenant_config.resolve_vobiz(cfg_session, call.tenant_id)
+            state["vobiz_creds"] = vobiz
+            self._vobiz_creds = vobiz
+            from app.config import settings as _settings
+
+            env_mode = (_settings.VOICE_PROVIDER or "sarvam").lower()
+            if mode != env_mode or sarvam["source"] == "tenant":
+                providers = get_providers(
+                    voice_provider=mode,
+                    sarvam_api_key=sarvam["api_key"] if sarvam["api_key"] else None,
+                )
+                self.stt, self.llm, self.tts = providers
+        except Exception as exc:  # config resolution must never kill a live call
+            logger.warning("tenant voice config resolution failed for call %s: %s", call_id, exc)
 
         try:
             greeting = (agent.greeting_message or "").strip()
