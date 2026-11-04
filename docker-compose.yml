@@ -1,0 +1,78 @@
+# ============================================================
+# FinalSaaS — one-command Docker setup
+#
+# Quickstart:
+#   1. cp backend/.env.example backend/.env
+#   2. Edit backend/.env — set SECRET_KEY, your VoBiz + Sarvam keys,
+#      and PUBLIC_BASE_URL (your public https URL / domain)
+#   3. docker compose up --build
+#   4. Open http://localhost:5173
+#
+# Default database is SQLite on the named volume `finalsaas_data`
+# (zero setup, perfect for demos and single-server production).
+#
+# Optional PostgreSQL (profile "postgres"):
+#   1. Create a ROOT-LEVEL .env file containing one line:
+#        POSTGRES_PASSWORD=<a-strong-password>     # never commit this file
+#      (docker compose reads ./.env automatically for ${...} interpolation)
+#   2. In backend/.env set:
+#        DATABASE_URL=postgresql+asyncpg://finalsaas:<same-password>@postgres:5432/finalsaas
+#   3. docker compose --profile postgres up --build
+# No password is hardcoded in this file — the postgres service below
+# fails fast with a clear error if POSTGRES_PASSWORD is not set.
+#
+# Run exactly ONE backend replica: the callback dispatcher and batch
+# dialler run in-process. See docs/PRODUCTION.md before scaling.
+# ============================================================
+
+services:
+  backend:
+    build: ./backend
+    container_name: finalsaas-backend
+    env_file:
+      - ./backend/.env
+    volumes:
+      - finalsaas_data:/app/data
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: finalsaas-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Optional production database — only started with:
+  #   docker compose --profile postgres up --build
+  postgres:
+    image: postgres:16-alpine
+    container_name: finalsaas-postgres
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_DB: finalsaas
+      POSTGRES_USER: finalsaas
+      # No default on purpose: set POSTGRES_PASSWORD in the root .env
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in a root-level .env file (see header comments)}
+    volumes:
+      - finalsaas_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finalsaas -d finalsaas"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  finalsaas_data:
+  finalsaas_pgdata:

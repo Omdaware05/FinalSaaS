@@ -1,0 +1,43 @@
+# Secrets — never commit real credentials
+.env
+backend/.env
+frontend/.env
+*.env
+!.env.example
+!backend/.env.example
+!frontend/.env.example
+
+# Databases & runtime data
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+data/
+backend/data/
+recordings/
+transcripts/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node / frontend
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+.vite/
+
+# Logs & misc
+*.log
+logs/
+.DS_Store
+.idea/
+.vscode/
+*.wav
+*.mp3
